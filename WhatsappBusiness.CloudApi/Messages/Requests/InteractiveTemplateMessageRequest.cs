@@ -19,7 +19,10 @@ namespace WhatsappBusiness.CloudApi.Messages.Requests
 
         [JsonProperty("template")]
         public InteractiveMessageTemplate Template { get; set; }
-    }
+
+		[JsonProperty("biz_opaque_callback_data", NullValueHandling = NullValueHandling.Ignore)]
+		public string BizOpaqueCallbackData { get; set; }
+	}
 
     public class InteractiveMessageTemplate
     {
@@ -53,7 +56,10 @@ namespace WhatsappBusiness.CloudApi.Messages.Requests
         [JsonProperty("type")]
         public string Type { get; set; }
 
-        [JsonProperty("image", NullValueHandling = NullValueHandling.Ignore)]
+		[JsonProperty("parameter_name", NullValueHandling = NullValueHandling.Ignore)]
+		public string ParameterName { get; set; }
+
+		[JsonProperty("image", NullValueHandling = NullValueHandling.Ignore)]
         public InteractiveMessageImage Image { get; set; }
 
         [JsonProperty("text", NullValueHandling = NullValueHandling.Ignore)]
@@ -67,7 +73,13 @@ namespace WhatsappBusiness.CloudApi.Messages.Requests
 
         [JsonProperty("payload", NullValueHandling = NullValueHandling.Ignore)]
         public string Payload { get; set; }
-    }
+
+        [JsonProperty("document", NullValueHandling = NullValueHandling.Ignore)]
+        public InteractiveMessageDocument Document { get; set; }
+
+		[JsonProperty("video", NullValueHandling = NullValueHandling.Ignore)]
+		public InteractiveMessageVideo Video { get; set; }
+	}
 
     public class InteractiveMessageCurrency
     {
@@ -86,43 +98,79 @@ namespace WhatsappBusiness.CloudApi.Messages.Requests
         [JsonProperty("fallback_value")]
         public string FallbackValue { get; set; }
 
-        [JsonProperty("day_of_week")]
+        [JsonProperty("day_of_week", NullValueHandling = NullValueHandling.Ignore)]
         public long DayOfWeek { get; set; }
 
-        [JsonProperty("year")]
+        [JsonProperty("year", NullValueHandling = NullValueHandling.Ignore)]
         public long Year { get; set; }
 
-        [JsonProperty("month")]
+        [JsonProperty("month", NullValueHandling = NullValueHandling.Ignore)]
         public long Month { get; set; }
 
-        [JsonProperty("day_of_month")]
+        [JsonProperty("day_of_month", NullValueHandling = NullValueHandling.Ignore)]
         public long DayOfMonth { get; set; }
 
-        [JsonProperty("hour")]
+        [JsonProperty("hour", NullValueHandling = NullValueHandling.Ignore)]
         public long Hour { get; set; }
 
-        [JsonProperty("minute")]
+        [JsonProperty("minute", NullValueHandling = NullValueHandling.Ignore)]
         public long Minute { get; set; }
 
-        [JsonProperty("calendar")]
+        [JsonProperty("calendar", NullValueHandling = NullValueHandling.Ignore)]
         public string Calendar { get; set; }
     }
 
     public class InteractiveMessageImage
     {
-        [JsonProperty("id")]
+        [JsonProperty("id", NullValueHandling = NullValueHandling.Ignore)]
         public string Id { get; set; }
 
-        [JsonProperty("link")]
+        [JsonProperty("link", NullValueHandling = NullValueHandling.Ignore)]
         public string Link { get; set; }
 
-        [JsonProperty("caption")]
+        [JsonProperty("caption", NullValueHandling = NullValueHandling.Ignore)]
         public string Caption { get; set; }
-    }
 
-    public class InteractiveMessageLanguage
+		[JsonProperty("provider", NullValueHandling = NullValueHandling.Ignore)]
+		public Provider Provider { get; set; }
+	}
+
+    public class InteractiveMessageDocument
+    {
+        [JsonProperty("id", NullValueHandling = NullValueHandling.Ignore)]
+        public string Id { get; set; }
+
+        [JsonProperty("link", NullValueHandling = NullValueHandling.Ignore)]
+        public string Link { get; set; }
+
+        [JsonProperty("filename", NullValueHandling = NullValueHandling.Ignore)]
+        public string FileName { get; set; }
+
+		[JsonProperty("provider", NullValueHandling = NullValueHandling.Ignore)]
+		public Provider Provider { get; set; }
+	}
+
+	public class InteractiveMessageVideo
+	{
+		[JsonProperty("id", NullValueHandling = NullValueHandling.Ignore)]
+		public string Id { get; set; }
+
+		[JsonProperty("link", NullValueHandling = NullValueHandling.Ignore)]
+		public string Link { get; set; }
+
+        [JsonProperty("provider", NullValueHandling = NullValueHandling.Ignore)]
+        public Provider Provider { get; set; }
+	}
+
+	public class InteractiveMessageLanguage
     {
         [JsonProperty("code")]
         public string Code { get; set; }
+    }
+
+    public class Provider
+    {
+        [JsonProperty("name")]
+        public string Name { get; set; }
     }
 }

@@ -19,7 +19,10 @@ namespace WhatsappBusiness.CloudApi.Messages.Requests
 
         [JsonProperty("template")]
         public TextMessageTemplate Template { get; set; }
-    }
+
+		[JsonProperty("biz_opaque_callback_data", NullValueHandling = NullValueHandling.Ignore)]
+		public string BizOpaqueCallbackData { get; set; }
+	}
 
     public class TextMessageTemplate
     {
@@ -40,12 +43,21 @@ namespace WhatsappBusiness.CloudApi.Messages.Requests
 
         [JsonProperty("parameters")]
         public List<TextMessageParameter> Parameters { get; set; }
+
+        [JsonProperty("sub_type", NullValueHandling = NullValueHandling.Ignore)]
+        public string SubType { get; set; }
+
+        [JsonProperty("index", NullValueHandling = NullValueHandling.Ignore)]
+        public string Index { get; set; }
     }
 
     public class TextMessageParameter
     {
         [JsonProperty("type")]
         public string Type { get; set; }
+
+        [JsonProperty("parameter_name", NullValueHandling = NullValueHandling.Ignore)]
+        public string ParameterName { get; set; }
 
         [JsonProperty("image", NullValueHandling = NullValueHandling.Ignore)]
         public TemplateImage Image { get; set; }
@@ -58,6 +70,9 @@ namespace WhatsappBusiness.CloudApi.Messages.Requests
 
         [JsonProperty("date_time", NullValueHandling = NullValueHandling.Ignore)]
         public TemplateDateTime DateTime { get; set; }
+
+        [JsonProperty("payload", NullValueHandling = NullValueHandling.Ignore)]
+        public string Payload { get; set; }
     }
 
     public class TemplateCurrency

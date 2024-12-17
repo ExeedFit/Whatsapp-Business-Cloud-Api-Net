@@ -87,7 +87,7 @@ namespace WhatsAppBusinessCloudAPI.Web.Controllers
             try
             {
                 WhatsAppResponse results = null;
-                switch(sendMediaMessage.SelectedMediaType)
+                switch (sendMediaMessage.SelectedMediaType)
                 {
                     case "Audio":
                         if (!string.IsNullOrWhiteSpace(sendMediaMessage.MediaId))
@@ -258,7 +258,8 @@ namespace WhatsAppBusinessCloudAPI.Web.Controllers
             sendInteractiveMessageViewModel.InteractiveType = new List<SelectListItem>()
             {
                 new SelectListItem(){ Text = "List Message", Value = "List Message" },
-                new SelectListItem(){ Text = "Reply Button", Value = "Reply Button" }
+                new SelectListItem(){ Text = "Reply Button", Value = "Reply Button" },
+                new SelectListItem(){ Text = "Location Request Message", Value = "Location Request Message" }
             };
             return View(sendInteractiveMessageViewModel);
         }
@@ -340,20 +341,20 @@ namespace WhatsAppBusinessCloudAPI.Web.Controllers
                     interactiveReplyButtonMessage.To = sendInteractiveMessageViewModel.RecipientPhoneNumber;
                     interactiveReplyButtonMessage.Interactive = new InteractiveReplyButtonMessage();
 
-					interactiveReplyButtonMessage.Interactive.Header = new ReplyButtonHeader();
-					interactiveReplyButtonMessage.Interactive.Header.Type = "text";
-					interactiveReplyButtonMessage.Interactive.Header.Text = "Reply Button Header Sample Test";
+                    interactiveReplyButtonMessage.Interactive.Header = new ReplyButtonHeader();
+                    interactiveReplyButtonMessage.Interactive.Header.Type = "text";
+                    interactiveReplyButtonMessage.Interactive.Header.Text = "Reply Button Header Sample Test";
 
-					interactiveReplyButtonMessage.Interactive.Body = new ReplyButtonBody();
+                    interactiveReplyButtonMessage.Interactive.Body = new ReplyButtonBody();
                     interactiveReplyButtonMessage.Interactive.Body.Text = sendInteractiveMessageViewModel.Message;
 
-					interactiveReplyButtonMessage.Interactive.Footer = new ReplyButtonFooter();
-					interactiveReplyButtonMessage.Interactive.Footer.Text = "Reply Button Footer Sample Test";
+                    interactiveReplyButtonMessage.Interactive.Footer = new ReplyButtonFooter();
+                    interactiveReplyButtonMessage.Interactive.Footer.Text = "Reply Button Footer Sample Test";
 
-					interactiveReplyButtonMessage.Interactive.Action = new ReplyButtonAction();
+                    interactiveReplyButtonMessage.Interactive.Action = new ReplyButtonAction();
                     interactiveReplyButtonMessage.Interactive.Action.Buttons = new List<ReplyButton>()
                     {
-                        new ReplyButton() 
+                        new ReplyButton()
                         {
                             Type = "reply",
                             Reply = new Reply()
@@ -377,6 +378,18 @@ namespace WhatsAppBusinessCloudAPI.Web.Controllers
                     results = await _whatsAppBusinessClient.SendInteractiveReplyButtonMessageAsync(interactiveReplyButtonMessage);
                 }
 
+                if (sendInteractiveMessageViewModel.SelectedInteractiveType.Equals("Location Request Message"))
+                {
+                    InteractiveLocationMessageRequest interactiveLocationMessageRequest = new InteractiveLocationMessageRequest();
+                    interactiveLocationMessageRequest.To = sendInteractiveMessageViewModel.RecipientPhoneNumber;
+                    interactiveLocationMessageRequest.Interactive = new InteractiveLocationRequestMessage();
+                    interactiveLocationMessageRequest.Interactive.Body = new InteractiveLocationBody();
+                    interactiveLocationMessageRequest.Interactive.Body.Text = (!string.IsNullOrWhiteSpace(sendInteractiveMessageViewModel.Message)) ? sendInteractiveMessageViewModel.Message : "Let us start with your pickup. You can either manually *enter an address* or *share your current location*.";
+                    interactiveLocationMessageRequest.Interactive.Action = new InteractiveLocationAction();
+
+                    results = await _whatsAppBusinessClient.SendLocationRequestMessageAsync(interactiveLocationMessageRequest);
+                }
+
                 if (results != null)
                 {
                     return RedirectToAction(nameof(Index)).WithSuccess("Success", "Successfully sent interactive message");
@@ -390,6 +403,64 @@ namespace WhatsAppBusinessCloudAPI.Web.Controllers
             {
                 _logger.LogError(ex, ex.Message);
                 return RedirectToAction(nameof(SendWhatsAppInteractiveMessage)).WithDanger("Error", ex.Message);
+            }
+        }
+
+        public IActionResult SendWhatsAppFlowMessage()
+        {
+            SendFlowMessageViewModel sendFlowMessageViewModel = new SendFlowMessageViewModel();
+            sendFlowMessageViewModel.FlowAction = new List<SelectListItem>()
+            {
+                new SelectListItem(){ Text = "Navigate", Value = "navigate" },
+                new SelectListItem(){ Text = "Data Exchange", Value = "data_exchange" }
+            };
+            sendFlowMessageViewModel.Mode = new List<SelectListItem>()
+            {
+                new SelectListItem(){ Text = "Draft", Value = "Draft" },
+                new SelectListItem(){ Text = "Published", Value = "Published" }
+            };
+            return View(sendFlowMessageViewModel);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SendWhatsAppFlowMessage(SendFlowMessageViewModel sendFlowMessageViewModel)
+        {
+            try
+            {
+                FlowMessageRequest flowMessageRequest = new FlowMessageRequest();
+                flowMessageRequest.To = sendFlowMessageViewModel.RecipientPhoneNumber;
+                flowMessageRequest.Interactive = new FlowMessageInteractive();
+
+                flowMessageRequest.Interactive.Header = new FlowMessageHeader();
+                flowMessageRequest.Interactive.Header.Type = "text";
+                flowMessageRequest.Interactive.Header.Text = "Header flow";
+
+                flowMessageRequest.Interactive.Body = new FlowMessageBody();
+                flowMessageRequest.Interactive.Body.Text = "Body flow";
+
+                flowMessageRequest.Interactive.Footer = new FlowMessageFooter();
+                flowMessageRequest.Interactive.Footer.Text = "Footer flow";
+
+                flowMessageRequest.Interactive.Action = new FlowMessageAction();
+                flowMessageRequest.Interactive.Action.Parameters = new FlowMessageParameters();
+                flowMessageRequest.Interactive.Action.Parameters.FlowToken = sendFlowMessageViewModel.FlowToken;
+                flowMessageRequest.Interactive.Action.Parameters.FlowId = sendFlowMessageViewModel.FlowId;
+                flowMessageRequest.Interactive.Action.Parameters.FlowCta = sendFlowMessageViewModel.FlowButtonText;
+                flowMessageRequest.Interactive.Action.Parameters.FlowAction = sendFlowMessageViewModel.SelectedFlowAction;
+                flowMessageRequest.Interactive.Action.Parameters.IsInDraftMode = (sendFlowMessageViewModel.SelectedMode.Equals("Draft", StringComparison.OrdinalIgnoreCase));
+
+                flowMessageRequest.Interactive.Action.Parameters.FlowActionPayload = new FlowActionPayload();
+                flowMessageRequest.Interactive.Action.Parameters.FlowActionPayload.Screen = sendFlowMessageViewModel.ScreenId;
+
+                var results = await _whatsAppBusinessClient.SendFlowMessageAsync(flowMessageRequest);
+
+                return RedirectToAction(nameof(Index)).WithSuccess("Success", "Successfully sent flow message");
+            }
+            catch (WhatsappBusinessCloudAPIException ex)
+            {
+                _logger.LogError(ex, ex.Message);
+                return RedirectToAction(nameof(SendWhatsAppFlowMessage)).WithDanger("Error", ex.Message);
             }
         }
 
@@ -739,16 +810,18 @@ namespace WhatsAppBusinessCloudAPI.Web.Controllers
             }
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> SendWhatsAppAuthenticationTemplateMessage(SendTemplateMessageViewModel sendTemplateMessageViewModel)
         {
             try
             {
                 AuthenticationTemplateMessageRequest authenticationTemplateMessageRequest = new();
                 authenticationTemplateMessageRequest.To = sendTemplateMessageViewModel.RecipientPhoneNumber;
-				authenticationTemplateMessageRequest.Template = new();
-				authenticationTemplateMessageRequest.Template.Name = sendTemplateMessageViewModel.TemplateName;
-				authenticationTemplateMessageRequest.Template.Language = new();
-				authenticationTemplateMessageRequest.Template.Language.Code = LanguageCode.English_US;
+                authenticationTemplateMessageRequest.Template = new();
+                authenticationTemplateMessageRequest.Template.Name = sendTemplateMessageViewModel.TemplateName;
+                authenticationTemplateMessageRequest.Template.Language = new();
+                authenticationTemplateMessageRequest.Template.Language.Code = LanguageCode.English_US;
                 authenticationTemplateMessageRequest.Template.Components = new List<AuthenticationMessageComponent>()
                 {
                     new AuthenticationMessageComponent()
@@ -772,30 +845,438 @@ namespace WhatsAppBusinessCloudAPI.Web.Controllers
                         {
                             new AuthenticationMessageParameter()
                             {
-								Type = "text",
-								Text = "J$FpnYnP" // One time password value
+                                Type = "text",
+                                Text = "J$FpnYnP" // One time password value
 							}
                         }
                     }
                 };
 
-				var results = await _whatsAppBusinessClient.SendAuthenticationMessageTemplateAsync(authenticationTemplateMessageRequest);
+                var results = await _whatsAppBusinessClient.SendAuthenticationMessageTemplateAsync(authenticationTemplateMessageRequest);
 
-				if (results != null)
-				{
-					return RedirectToAction(nameof(Index)).WithSuccess("Success", "Successfully sent authentication template message");
-				}
-				else
-				{
-					return RedirectToAction(nameof(SendWhatsAppTemplateMessage));
-				}
-			}
-			catch (WhatsappBusinessCloudAPIException ex)
-			{
-				_logger.LogError(ex, ex.Message);
-				return RedirectToAction(nameof(SendWhatsAppTemplateMessage)).WithDanger("Error", ex.Message);
-			}
-		}
+                if (results != null)
+                {
+                    return RedirectToAction(nameof(Index)).WithSuccess("Success", "Successfully sent authentication template message");
+                }
+                else
+                {
+                    return RedirectToAction(nameof(SendWhatsAppTemplateMessage));
+                }
+            }
+            catch (WhatsappBusinessCloudAPIException ex)
+            {
+                _logger.LogError(ex, ex.Message);
+                return RedirectToAction(nameof(SendWhatsAppTemplateMessage)).WithDanger("Error", ex.Message);
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SendWhatsAppCatalogueTemplateMessage(SendTemplateMessageViewModel sendTemplateMessageViewModel)
+        {
+            try
+            {
+                CatalogTemplateMessageRequest catalogTemplateMessageRequest = new CatalogTemplateMessageRequest();
+                catalogTemplateMessageRequest.To = sendTemplateMessageViewModel.RecipientPhoneNumber;
+                catalogTemplateMessageRequest.Template = new();
+                catalogTemplateMessageRequest.Template.Name = sendTemplateMessageViewModel.TemplateName;
+                catalogTemplateMessageRequest.Template.Language = new();
+                catalogTemplateMessageRequest.Template.Language.Code = LanguageCode.English_US;
+                catalogTemplateMessageRequest.Template.Components = new List<CatalogMessageComponent>()
+                {
+                    new CatalogMessageComponent()
+                    {
+                        Type = "Body",
+                        Parameters = new List<CatalogTemplateMessageParameter>()
+                        {
+                            new CatalogTemplateMessageParameter()
+                            {
+                                Type = "text",
+                                Text = "100"
+                            },
+                            new CatalogTemplateMessageParameter()
+                            {
+                                Type = "text",
+                                Text = "400"
+                            },
+                            new CatalogTemplateMessageParameter()
+                            {
+                                Type = "text",
+                                Text = "3"
+                            },
+                        }
+                    },
+                    new CatalogMessageComponent()
+                    {
+                        Type = "button",
+                        SubType = "CATALOG",
+                        Index = 0,
+                        Parameters = new List<CatalogTemplateMessageParameter>()
+                        {
+                            new CatalogTemplateMessageParameter()
+                            {
+                                Type = "action",
+                                Action = new CatalogTemplateMessageAction()
+                                {
+                                    ThumbnailProductRetailerId = "2lc20305pt"
+                                }
+                            }
+                        }
+                    }
+                };
+
+                var results = await _whatsAppBusinessClient.SendCatalogMessageTemplateAsync(catalogTemplateMessageRequest);
+
+                if (results != null)
+                {
+                    return RedirectToAction(nameof(Index)).WithSuccess("Success", "Successfully sent catalogue template message");
+                }
+                else
+                {
+                    return RedirectToAction(nameof(SendWhatsAppTemplateMessage));
+                }
+            }
+            catch (WhatsappBusinessCloudAPIException ex)
+            {
+                _logger.LogError(ex, ex.Message);
+                return RedirectToAction(nameof(SendWhatsAppTemplateMessage)).WithDanger("Error", ex.Message);
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SendWhatsAppCarouselTemplateMessage(SendTemplateMessageViewModel sendTemplateMessageViewModel)
+        {
+            try
+            {
+                CarouselTemplateMessageRequest carouselTemplateMessageRequest = new CarouselTemplateMessageRequest();
+                carouselTemplateMessageRequest.To = sendTemplateMessageViewModel.RecipientPhoneNumber;
+                carouselTemplateMessageRequest.Template = new();
+                carouselTemplateMessageRequest.Template.Name = sendTemplateMessageViewModel.TemplateName;
+                carouselTemplateMessageRequest.Template.Language = new();
+                carouselTemplateMessageRequest.Template.Language.Code = LanguageCode.English_US;
+                carouselTemplateMessageRequest.Template.Components = new List<CarouselMessageTemplateComponent>()
+                {
+                    new CarouselMessageTemplateComponent()
+                    {
+                        Type = "BODY",
+                        Parameters = new List<CarouselMessageParameter>()
+                        {
+                            new CarouselMessageParameter()
+                            {
+                                Type = "Text",
+                                Text = "20OFF"
+                            },
+                            new CarouselMessageParameter()
+                            {
+                                Type = "Text",
+                                Text = "20%"
+                            }
+                        }
+                    },
+                    new CarouselMessageTemplateComponent()
+                    {
+                        Type = "CAROUSEL",
+                        Cards = new List<CarouselMessageCard>()
+                        {
+                            new CarouselMessageCard()
+                            {
+                                CardIndex = 0,
+                                Components = new List<CarouselCardComponent>()
+                                {
+                                    new CarouselCardComponent()
+                                    {
+                                        Type = "HEADER",
+                                        Parameters = new List<CardMessageParameter>()
+                                        {
+                                            new CardMessageParameter()
+                                            {
+                                                Type = "IMAGE",
+                                                Image = new CardImage()
+                                                {
+                                                    Id = "24230790383178626"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    new CarouselCardComponent()
+                                    {
+                                        Type = "BODY",
+                                        Parameters = new List<CardMessageParameter>()
+                                        {
+                                            new CardMessageParameter()
+                                            {
+                                                Type = "Text",
+                                                Text = "10OFF"
+                                            },
+                                            new CardMessageParameter()
+                                            {
+                                                Type = "Text",
+                                                Text = "10%"
+                                            }
+                                        }
+                                    },
+                                    new CarouselCardComponent()
+                                    {
+                                        Type = "BUTTON",
+                                        SubType = "QUICK_REPLY",
+                                        Index = 0,
+                                        Parameters = new List<CardMessageParameter>()
+                                        {
+                                            new CardMessageParameter()
+                                            {
+                                                Type = "PAYLOAD",
+                                                Payload = "59NqSd"
+                                            }
+                                        }
+                                    },
+                                    new CarouselCardComponent()
+                                    {
+                                        Type = "button",
+                                        SubType = "URL",
+                                        Index = 1,
+                                        Parameters = new List<CardMessageParameter>()
+                                        {
+                                            new CardMessageParameter()
+                                            {
+                                                Type = "PAYLOAD",
+                                                Payload = "last_chance_2023"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                };
+
+                var results = await _whatsAppBusinessClient.SendCarouselMessageTemplateAsync(carouselTemplateMessageRequest);
+
+                if (results != null)
+                {
+                    return RedirectToAction(nameof(Index)).WithSuccess("Success", "Successfully sent carousel template message");
+                }
+                else
+                {
+                    return RedirectToAction(nameof(SendWhatsAppTemplateMessage));
+                }
+            }
+            catch (WhatsappBusinessCloudAPIException ex)
+            {
+                _logger.LogError(ex, ex.Message);
+                return RedirectToAction(nameof(SendWhatsAppTemplateMessage)).WithDanger("Error", ex.Message);
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SendWhatsAppCouponCodeTemplateMessage(SendTemplateMessageViewModel sendTemplateMessageViewModel)
+        {
+            try
+            {
+                CouponCodeTemplateMessageRequest couponCodeTemplateMessageRequest = new CouponCodeTemplateMessageRequest();
+                couponCodeTemplateMessageRequest.To = sendTemplateMessageViewModel.RecipientPhoneNumber;
+                couponCodeTemplateMessageRequest.Template = new();
+                couponCodeTemplateMessageRequest.Template.Name = sendTemplateMessageViewModel.TemplateName;
+                couponCodeTemplateMessageRequest.Template.Language = new();
+                couponCodeTemplateMessageRequest.Template.Language.Code = LanguageCode.English_US;
+                couponCodeTemplateMessageRequest.Template.Components = new List<CouponCodeMessageComponent>()
+                {
+                    new CouponCodeMessageComponent()
+                    {
+                        Type = "body",
+                        Parameters = new List<CouponCodeMessageParameter>()
+                        {
+                            new CouponCodeMessageParameter()
+                            {
+                                Type = "text",
+                                Text = "25OFF"
+                            },
+                            new CouponCodeMessageParameter()
+                            {
+                                Type = "text",
+                                Text = "25%"
+                            }
+                        }
+                    },
+                    new CouponCodeMessageComponent()
+                    {
+                        Type = "button",
+                        SubType = "COPY_CODE",
+                        Index = 1,
+                        Parameters = new List<CouponCodeMessageParameter>()
+                        {
+                            new CouponCodeMessageParameter()
+                            {
+                                Type = "coupon_code",
+                                Text = "25OFF"
+                            }
+                        }
+                    }
+                };
+
+                var results = await _whatsAppBusinessClient.SendCouponCodeMessageTemplateAsync(couponCodeTemplateMessageRequest);
+
+                if (results != null)
+                {
+                    return RedirectToAction(nameof(Index)).WithSuccess("Success", "Successfully sent coupon code template message");
+                }
+                else
+                {
+                    return RedirectToAction(nameof(SendWhatsAppTemplateMessage));
+                }
+            }
+            catch (WhatsappBusinessCloudAPIException ex)
+            {
+                _logger.LogError(ex, ex.Message);
+                return RedirectToAction(nameof(SendWhatsAppTemplateMessage)).WithDanger("Error", ex.Message);
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SendWhatsAppLimitedTimeOfferTemplateMessage(SendTemplateMessageViewModel sendTemplateMessageViewModel)
+        {
+            try
+            {
+                LimitedTimeOfferTemplateMessageRequest limitedTimeOfferTemplateMessageRequest = new LimitedTimeOfferTemplateMessageRequest();
+                limitedTimeOfferTemplateMessageRequest.To = sendTemplateMessageViewModel.RecipientPhoneNumber;
+                limitedTimeOfferTemplateMessageRequest.Template = new();
+                limitedTimeOfferTemplateMessageRequest.Template.Name = sendTemplateMessageViewModel.TemplateName;
+                limitedTimeOfferTemplateMessageRequest.Template.Language = new();
+                limitedTimeOfferTemplateMessageRequest.Template.Language.Code = LanguageCode.English_US;
+                limitedTimeOfferTemplateMessageRequest.Template.Components = new List<LimitedTimeOfferMessageComponent>()
+                {
+                    new LimitedTimeOfferMessageComponent()
+                    {
+                        Type = "body",
+                        Parameters = new List<LimitedTimeOfferMessageParameter>()
+                        {
+                            new LimitedTimeOfferMessageParameter()
+                            {
+                                Type = "text",
+                                Text = "Pablo"
+                            },
+                            new LimitedTimeOfferMessageParameter()
+                            {
+                                Type = "text",
+                                Text = "CARIBE25"
+                            }
+                        }
+                    },
+                    new LimitedTimeOfferMessageComponent()
+                    {
+                        Type = "limited_time_offer",
+                        Parameters = new List<LimitedTimeOfferMessageParameter>()
+                        {
+                            new LimitedTimeOfferMessageParameter()
+                            {
+                                Type = "limited_time_offer",
+                                LimitedTimeOffer = new LimitedTimeOffer()
+                                {
+                                    ExpirationTimeMs = new DateTimeOffset(DateTime.UtcNow.AddHours(2)).ToUnixTimeMilliseconds()
+                                }
+                            }
+                        }
+                    },
+                    new LimitedTimeOfferMessageComponent()
+                    {
+                        Type = "button",
+                        SubType = "copy_code",
+                        Index = 0,
+                        Parameters = new List<LimitedTimeOfferMessageParameter>()
+                        {
+                            new LimitedTimeOfferMessageParameter()
+                            {
+                                Type = "coupon_code",
+                                CouponCode = "CARIBE25"
+                            }
+                        }
+                    },
+                    new LimitedTimeOfferMessageComponent()
+                    {
+                        Type = "button",
+                        SubType = "url",
+                        Index = 1,
+                        Parameters = new List<LimitedTimeOfferMessageParameter>()
+                        {
+                            new LimitedTimeOfferMessageParameter()
+                            {
+                                Type = "text",
+                                Text = "https://www.google.com/maps"
+                            }
+                        }
+                    }
+                };
+
+                var results = await _whatsAppBusinessClient.SendLimitedTimeOfferMessageTemplateAsync(limitedTimeOfferTemplateMessageRequest);
+
+                if (results != null)
+                {
+                    return RedirectToAction(nameof(Index)).WithSuccess("Success", "Successfully sent limited time offer template message");
+                }
+                else
+                {
+                    return RedirectToAction(nameof(SendWhatsAppTemplateMessage));
+                }
+            }
+            catch (WhatsappBusinessCloudAPIException ex)
+            {
+                _logger.LogError(ex, ex.Message);
+                return RedirectToAction(nameof(SendWhatsAppTemplateMessage)).WithDanger("Error", ex.Message);
+            }
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SendWhatsAppFlowTemplateMessage(SendTemplateMessageViewModel sendTemplateMessageViewModel)
+        {
+            try
+            {
+                FlowTemplateMessageRequest flowTemplateMessageRequest = new FlowTemplateMessageRequest();
+                flowTemplateMessageRequest.To = sendTemplateMessageViewModel.RecipientPhoneNumber;
+                flowTemplateMessageRequest.Template = new();
+                flowTemplateMessageRequest.Template.Name = sendTemplateMessageViewModel.TemplateName;
+                flowTemplateMessageRequest.Template.Language = new();
+                flowTemplateMessageRequest.Template.Language.Code = LanguageCode.English_US;
+                flowTemplateMessageRequest.Template.Components = new List<FlowMessageComponent>()
+                {
+                    new FlowMessageComponent()
+                    {
+                        Type = "button",
+                        SubType = "flow",
+                        Index = 0,
+                        Parameters = new List<FlowTemplateMessageParameter>()
+                        {
+                            new FlowTemplateMessageParameter()
+                            {
+                                Type = "action",
+                                Action = new FlowTemplateMessageAction()
+                                {
+                                    FlowToken = "",
+                                }
+                            }
+                        }
+                    }
+                };
+
+                var results = await _whatsAppBusinessClient.SendFlowMessageTemplateAsync(flowTemplateMessageRequest);
+
+                if (results != null)
+                {
+                    return RedirectToAction(nameof(Index)).WithSuccess("Success", "Successfully sent flow template message");
+                }
+                else
+                {
+                    return RedirectToAction(nameof(SendWhatsAppTemplateMessage));
+                }
+            }
+            catch (WhatsappBusinessCloudAPIException ex)
+            {
+                _logger.LogError(ex, ex.Message);
+                return RedirectToAction(nameof(SendWhatsAppTemplateMessage)).WithDanger("Error", ex.Message);
+            }
+        }
 
         public IActionResult SendWhatsAppContactMessage()
         {
@@ -856,14 +1337,14 @@ namespace WhatsAppBusinessCloudAPI.Web.Controllers
 
         public IActionResult UploadMedia()
         {
-			UploadMediaViewModel uploadMediaViewModel = new UploadMediaViewModel();
-			uploadMediaViewModel.UploadType = new List<SelectListItem>()
-			{
-				new SelectListItem(){ Text = "Normal Upload", Value = "Normal Upload" },
-				new SelectListItem(){ Text = "Resumable Upload", Value = "Resumable Upload" },
-			};
+            UploadMediaViewModel uploadMediaViewModel = new UploadMediaViewModel();
+            uploadMediaViewModel.UploadType = new List<SelectListItem>()
+            {
+                new SelectListItem(){ Text = "Normal Upload", Value = "Normal Upload" },
+                new SelectListItem(){ Text = "Resumable Upload", Value = "Resumable Upload" },
+            };
 
-			return View(uploadMediaViewModel);
+            return View(uploadMediaViewModel);
         }
 
         [HttpPost]
@@ -872,35 +1353,38 @@ namespace WhatsAppBusinessCloudAPI.Web.Controllers
         {
             try
             {
-				var fileName = Path.GetFileName(mediaFile.FileName).Trim('"');
+                var fileName = Path.GetFileName(mediaFile.FileName).Trim('"');
 
-				var rootPath = Path.Combine(_environment.WebRootPath, "Application_Files\\MediaUploads\\");
+                var rootPath = Path.Combine(_environment.WebRootPath, "Application_Files\\MediaUploads\\");
 
-				if (!Directory.Exists(rootPath))
-				{
-					Directory.CreateDirectory(rootPath);
-				}
-
-				// Get the path of filename
-				var filePath = Path.Combine(_environment.WebRootPath, "Application_Files\\MediaUploads\\", fileName);
-
-				// Upload Csv file to the browser
-				using (var stream = new FileStream(filePath, FileMode.Create))
-				{
-					await mediaFile.CopyToAsync(stream);
-				}
-
-				if (uploadMediaViewModel.SelectedUploadType.Equals("Normal Upload", StringComparison.OrdinalIgnoreCase))
+                if (!Directory.Exists(rootPath))
                 {
-					UploadMediaRequest uploadMediaRequest = new UploadMediaRequest();
-					uploadMediaRequest.File = filePath;
-					uploadMediaRequest.Type = mediaFile.ContentType;
+                    Directory.CreateDirectory(rootPath);
+                }
 
-					var uploadMediaResult = await _whatsAppBusinessClient.UploadMediaAsync(uploadMediaRequest);
+                // Get the path of filename
+                var filePath = Path.Combine(_environment.WebRootPath, "Application_Files\\MediaUploads\\", fileName);
 
+                // Upload Csv file to the browser
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                {
+                    await mediaFile.CopyToAsync(stream);
+                }
 
-					ViewBag.MediaId = uploadMediaResult.MediaId;
-				}
+                if (uploadMediaViewModel.SelectedUploadType.Equals("Normal Upload", StringComparison.OrdinalIgnoreCase))
+                {
+                    UploadMediaRequest uploadMediaRequest = new UploadMediaRequest();
+                    uploadMediaRequest.File = filePath;
+                    uploadMediaRequest.Type = mediaFile.ContentType;
+
+                    var uploadMediaResult = await _whatsAppBusinessClient.UploadMediaAsync(uploadMediaRequest);
+
+                    var mediaUrlResult = await _whatsAppBusinessClient.GetMediaUrlAsync(uploadMediaResult.MediaId);
+
+                    var mediaBytes = await _whatsAppBusinessClient.DownloadMediaAsync(mediaUrlResult.Url);
+
+                    ViewBag.MediaId = uploadMediaResult.MediaId;
+                }
                 else // Resumable upload generates header file response to be used for creating message templates
                 {
                     var resumableUploadMediaResult = await _whatsAppBusinessClient.CreateResumableUploadSessionAsync(mediaFile.Length, mediaFile.ContentType, mediaFile.FileName);
@@ -915,8 +1399,8 @@ namespace WhatsAppBusinessCloudAPI.Web.Controllers
 
                         if (resumableUploadResponse is not null)
                         {
-							ViewBag.H = resumableUploadResponse.H;
-						}
+                            ViewBag.H = resumableUploadResponse.H;
+                        }
 
                         if (queryResumableUploadStatus is not null)
                         {
@@ -924,9 +1408,9 @@ namespace WhatsAppBusinessCloudAPI.Web.Controllers
                             ViewBag.FileOffset = queryResumableUploadStatus.FileOffset;
                         }
                     }
-				}
+                }
 
-				return View(uploadMediaViewModel).WithSuccess("Success", "Successfully upload media.");
+                return View(uploadMediaViewModel).WithSuccess("Success", "Successfully upload media.");
             }
             catch (WhatsappBusinessCloudAPIException ex)
             {
@@ -946,22 +1430,22 @@ namespace WhatsAppBusinessCloudAPI.Web.Controllers
             return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
         }
 
-		public IActionResult CreateQRCodeMessage()
-		{
+        public IActionResult CreateQRCodeMessage()
+        {
             QRCodeMessageViewModel qrCodeMessageViewModel = new QRCodeMessageViewModel();
             qrCodeMessageViewModel.ImageFormat = new List<SelectListItem>()
             {
-				new SelectListItem(){ Text = "SVG", Value = "SVG" },
-				new SelectListItem(){ Text = "PNG", Value = "PNG" },
-			};
+                new SelectListItem(){ Text = "SVG", Value = "SVG" },
+                new SelectListItem(){ Text = "PNG", Value = "PNG" },
+            };
 
-			return View(qrCodeMessageViewModel);
-		}
+            return View(qrCodeMessageViewModel);
+        }
 
-		[HttpPost]
-		[ValidateAntiForgeryToken]
-		public async Task<IActionResult> CreateQRCodeMessage(QRCodeMessageViewModel qrCodeMessageViewModel)
-		{
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateQRCodeMessage(QRCodeMessageViewModel qrCodeMessageViewModel)
+        {
             try
             {
                 var results = await _whatsAppBusinessClient.CreateQRCodeMessageAsync(qrCodeMessageViewModel.Message, qrCodeMessageViewModel.SelectedImageFormat);
@@ -971,19 +1455,19 @@ namespace WhatsAppBusinessCloudAPI.Web.Controllers
                     ViewBag.QRCodeId = results.Code;
                     ViewBag.QRCodeMessage = results.PrefilledMessage;
                     ViewBag.QRCodeUrl = results.QrImageUrl;
-					return View(qrCodeMessageViewModel).WithSuccess("Success", "Successfully created QR code Message.");
-				}
+                    return View(qrCodeMessageViewModel).WithSuccess("Success", "Successfully created QR code Message.");
+                }
                 else
                 {
-					return View(qrCodeMessageViewModel).WithDanger("Error", "QR code message is null");
-				}
+                    return View(qrCodeMessageViewModel).WithDanger("Error", "QR code message is null");
+                }
             }
-			catch (WhatsappBusinessCloudAPIException ex)
-			{
-				_logger.LogError(ex, ex.Message);
-				return View(qrCodeMessageViewModel).WithDanger("Error", ex.Message);
-			}
-		}
+            catch (WhatsappBusinessCloudAPIException ex)
+            {
+                _logger.LogError(ex, ex.Message);
+                return View(qrCodeMessageViewModel).WithDanger("Error", ex.Message);
+            }
+        }
 
         public async Task<IActionResult> QRCodeMessageList()
         {
@@ -1007,37 +1491,37 @@ namespace WhatsAppBusinessCloudAPI.Web.Controllers
                     return View().WithDanger("Error", "QR code message list not availble");
                 }
             }
-			catch (WhatsappBusinessCloudAPIException ex)
-			{
-				_logger.LogError(ex, ex.Message);
-				return View().WithDanger("Error", ex.Message);
-			}
-		}
+            catch (WhatsappBusinessCloudAPIException ex)
+            {
+                _logger.LogError(ex, ex.Message);
+                return View().WithDanger("Error", ex.Message);
+            }
+        }
 
         public async Task<IActionResult> Analytics()
         {
             try
             {
-				DateTime currentDate = DateTime.UtcNow;
-				var startOfMonth = new DateTime(currentDate.Year, currentDate.Month, 1);
-				var endOfMonth = startOfMonth.AddMonths(1).AddDays(-1);
-				var results = await _whatsAppBusinessClient.GetAnalyticMetricsAsync(_whatsAppConfig.WhatsAppBusinessAccountId, startOfMonth, endOfMonth, Granularity.AnalyticsGranularity.MONTH);
+                DateTime currentDate = DateTime.UtcNow;
+                var startOfMonth = new DateTime(currentDate.Year, currentDate.Month, 1);
+                var endOfMonth = startOfMonth.AddMonths(1).AddDays(-1);
+                var results = await _whatsAppBusinessClient.GetAnalyticMetricsAsync(_whatsAppConfig.WhatsAppBusinessAccountId, startOfMonth, endOfMonth, Granularity.AnalyticsGranularity.MONTH);
 
-				if (results is not null)
-				{
-					return View(results).WithSuccess("Success", "Analytics retrieved successfully");
-				}
-				else
-				{
-					return View().WithDanger("Error", "Analytics not available");
-				}
-			}
-			catch (WhatsappBusinessCloudAPIException ex)
-			{
-				_logger.LogError(ex, ex.Message);
-				return View().WithDanger("Error", ex.Message);
-			}
-		}
+                if (results is not null)
+                {
+                    return View(results).WithSuccess("Success", "Analytics retrieved successfully");
+                }
+                else
+                {
+                    return View().WithDanger("Error", "Analytics not available");
+                }
+            }
+            catch (WhatsappBusinessCloudAPIException ex)
+            {
+                _logger.LogError(ex, ex.Message);
+                return View().WithDanger("Error", ex.Message);
+            }
+        }
 
         public async Task<IActionResult> ConversationAnalytics()
         {
@@ -1057,11 +1541,50 @@ namespace WhatsAppBusinessCloudAPI.Web.Controllers
                     return View().WithDanger("Error", "Conversation Analytics not available");
                 }
             }
-			catch (WhatsappBusinessCloudAPIException ex)
-			{
-				_logger.LogError(ex, ex.Message);
-				return View().WithDanger("Error", ex.Message);
-			}
-		}
-	}
+            catch (WhatsappBusinessCloudAPIException ex)
+            {
+                _logger.LogError(ex, ex.Message);
+                return View().WithDanger("Error", ex.Message);
+            }
+        }
+
+        public IActionResult BulkSendWhatsApps()
+        {
+            BulkSendWhatsAppsViewModel bulkSendWhatsAppsViewModel = new BulkSendWhatsAppsViewModel();
+
+            return View(bulkSendWhatsAppsViewModel);
+        }
+
+        /// <summary>
+		/// Make use of BulkSendWhatsAppController to read a CSV file, loop through the file and send whatsApp per record
+		/// </summary>
+		/// <param name="bulkSendWhatsAppsViewModel"></param>
+		/// <param name="bulkFile"></param>
+		/// <returns></returns>
+		[HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> BulkSendWhatsApps(BulkSendWhatsAppsViewModel bulkSendWhatsAppsViewModel, IFormFile bulkFile)
+        {
+            try
+            { // This is to call the relevant methods to run through the file and Bulk Send WhatsApps
+              //List<string> WAMIds = new List<string>();			
+
+                // Upload the Bulk File to the Local Server
+                FileInfo fileInfo = new();
+                FileManagmentController fileController = new(_logger, _whatsAppBusinessClient, _environment);
+                fileInfo = await fileController.UploadFileToLocalServer(bulkFile);
+
+                // Now go through the file and send the WhatsApps
+                BulkSendWhatsAppsController bulkSendWhatsAppsController = new(_logger, _whatsAppBusinessClient, _environment);
+                var WAMIDs = bulkSendWhatsAppsController.ReadAndTraverseCSV(fileInfo);
+
+                return View(bulkSendWhatsAppsViewModel);
+            }
+            catch (WhatsappBusinessCloudAPIException ex)
+            {
+                _logger.LogError(ex, ex.Message);
+                return RedirectToAction(nameof(bulkFile)).WithDanger("Error", ex.Message);
+            }
+        }
+    }
 }
